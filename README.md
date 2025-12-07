@@ -1,6 +1,8 @@
 # gh-context
 
-A kubectx-style context switcher for GitHub CLI - manage multiple GitHub accounts easily.
+
+
+A kubectx-style context switcher for GitHub CLI - manage multiple GitHub accounts easily. This idea was based on https://github.com/automationpi/gh-context then customized a bit to my liking. Since I wanted to keep the convenient `gh context` subcommand, I had to name it the repo `gh-context`.
 
 ## What It Does
 
