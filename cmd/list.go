@@ -42,8 +42,8 @@ func runList(cmd *cobra.Command, args []string) error {
 		}
 
 		sshInfo := ""
-		if ctx.SSHHostAlias != "" {
-			sshInfo = fmt.Sprintf(", ssh_host=%s", ctx.SSHHostAlias)
+		if ctx.SSHKey != "" {
+			sshInfo = fmt.Sprintf(", key=%s", ctx.SSHKey)
 		}
 
 		fmt.Printf("  %s%s\t(%s@%s, %s%s)\n",

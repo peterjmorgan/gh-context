@@ -8,6 +8,7 @@ import (
 
 	"github.com/pmorgan/gh-context/internal/auth"
 	"github.com/pmorgan/gh-context/internal/config"
+	"github.com/pmorgan/gh-context/internal/ssh"
 	"github.com/spf13/cobra"
 )
 
@@ -35,6 +36,9 @@ func runAuthStatus(cmd *cobra.Command, args []string) error {
 
 	active, _ := config.GetActive()
 
+	// Get current SSH config state
+	sshCfg, _ := ssh.ParseConfig("")
+
 	for _, ctx := range contexts {
 		indicator := ""
 		if ctx.Name == active {
@@ -46,13 +50,32 @@ func runAuthStatus(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  User: %s\n", ctx.User)
 		fmt.Printf("  Transport: %s\n", ctx.Transport)
 
+		// Show SSH key info
+		if ctx.SSHKey != "" {
+			keyExists := "❌"
+			if ssh.KeyExists(ctx.SSHKey) {
+				keyExists = "✅"
+			}
+			fmt.Printf("  SSH Key: %s %s\n", ctx.SSHKey, keyExists)
+
+			// Check if this key is active in SSH config
+			if sshCfg != nil {
+				activeKey := sshCfg.GetActiveIdentityFile(ctx.Hostname)
+				if activeKey != "" && ssh.ExpandPath(activeKey) == ssh.ExpandPath(ctx.SSHKey) {
+					fmt.Printf("  SSH Active: ✅ (currently active in ~/.ssh/config)\n")
+				} else {
+					fmt.Printf("  SSH Active: ❌ (not active in ~/.ssh/config)\n")
+				}
+			}
+		}
+
 		// Check authentication status
 		authIcon := "❌"
 		if auth.IsUserLoggedIn(ctx.Hostname, ctx.User) {
 			authIcon = "✅"
 		}
 
-		fmt.Printf("  Auth: %s\n", authIcon)
+		fmt.Printf("  GH Auth: %s\n", authIcon)
 
 		// Show login command if not authenticated
 		if authIcon == "❌" {
