@@ -4,7 +4,7 @@
 package cmd
 
 import (
-	"github.com/peterjmorgan/gh-context-go/internal/git"
+	"github.com/peterjmorgan/gh-context/internal/git"
 	"github.com/spf13/cobra"
 )
 

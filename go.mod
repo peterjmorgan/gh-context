@@ -1,4 +1,4 @@
-module github.com/peterjmorgan/gh-context-go
+module github.com/peterjmorgan/gh-context
 
 go 1.21
 

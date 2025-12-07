@@ -14,7 +14,7 @@ This means both `git push` and `gh` commands will use the right credentials auto
 ## Installation
 
 ```bash
-gh extension install peterjmorgan/gh-context-go
+gh extension install peterjmorgan/gh-context
 ```
 
 ## Prerequisites: SSH Config Setup

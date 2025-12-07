@@ -6,9 +6,9 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/peterjmorgan/gh-context-go/internal/auth"
-	"github.com/peterjmorgan/gh-context-go/internal/config"
-	"github.com/peterjmorgan/gh-context-go/internal/ssh"
+	"github.com/peterjmorgan/gh-context/internal/auth"
+	"github.com/peterjmorgan/gh-context/internal/config"
+	"github.com/peterjmorgan/gh-context/internal/ssh"
 	"github.com/spf13/cobra"
 )
 
