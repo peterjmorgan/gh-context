@@ -9,6 +9,7 @@ import (
 
 	"github.com/pmorgan/gh-context/internal/auth"
 	"github.com/pmorgan/gh-context/internal/config"
+	"github.com/pmorgan/gh-context/internal/ssh"
 	"github.com/spf13/cobra"
 )
 
@@ -17,10 +18,13 @@ var newCmd = &cobra.Command{
 	Short: "Create a new context",
 	Long: `Create a new context from the current session or with explicit parameters.
 
+For SSH transport, the SSH key is required. When using --from-current, it will
+detect the currently active SSH key from your ~/.ssh/config file.
+
 Examples:
   gh context new --from-current --name work
-  gh context new --hostname github.com --user myuser --transport ssh --name personal
-  gh context new --hostname github.enterprise.com --user myuser --transport https --ssh-host gh-work --name enterprise`,
+  gh context new --from-current --name personal --ssh-key ~/.ssh/id_personal
+  gh context new --hostname github.com --user myuser --ssh-key ~/.ssh/id_mykey --name mycontext`,
 	RunE: runNew,
 }
 
@@ -30,16 +34,16 @@ var (
 	newHostname    string
 	newUser        string
 	newTransport   string
-	newSSHHost     string
+	newSSHKey      string
 )
 
 func init() {
 	newCmd.Flags().StringVar(&newName, "name", "", "Context name (required)")
 	newCmd.Flags().BoolVar(&newFromCurrent, "from-current", false, "Create context from current gh session")
-	newCmd.Flags().StringVar(&newHostname, "hostname", "", "GitHub hostname (e.g., github.com)")
+	newCmd.Flags().StringVar(&newHostname, "hostname", "", "GitHub hostname (default: github.com)")
 	newCmd.Flags().StringVar(&newUser, "user", "", "GitHub username")
 	newCmd.Flags().StringVar(&newTransport, "transport", "ssh", "Transport protocol (ssh or https)")
-	newCmd.Flags().StringVar(&newSSHHost, "ssh-host", "", "SSH host alias for custom SSH configs")
+	newCmd.Flags().StringVar(&newSSHKey, "ssh-key", "", "Path to SSH key (e.g., ~/.ssh/id_personal)")
 
 	newCmd.MarkFlagRequired("name")
 }
@@ -59,7 +63,7 @@ func runNew(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("context '%s' already exists", newName)
 	}
 
-	var hostname, user string
+	var hostname, user, sshKey string
 
 	if newFromCurrent {
 		// Get from current session
@@ -83,6 +87,20 @@ func runNew(cmd *cobra.Command, args []string) error {
 		if user == "" {
 			user = currentUser
 		}
+
+		// Get SSH key - from flag or detect from current config
+		sshKey = newSSHKey
+		if sshKey == "" && newTransport == "ssh" {
+			// Try to detect from SSH config
+			sshCfg, err := ssh.ParseConfig("")
+			if err == nil {
+				activeKey := sshCfg.GetActiveIdentityFile(hostname)
+				if activeKey != "" {
+					sshKey = activeKey
+					printInfo("Detected SSH key from config: %s", sshKey)
+				}
+			}
+		}
 	} else {
 		// Explicit parameters required
 		if newHostname == "" || newUser == "" {
@@ -90,6 +108,7 @@ func runNew(cmd *cobra.Command, args []string) error {
 		}
 		hostname = newHostname
 		user = newUser
+		sshKey = newSSHKey
 	}
 
 	// Validate transport
@@ -100,13 +119,26 @@ func runNew(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("transport must be 'ssh' or 'https', got: %s", newTransport)
 	}
 
+	// For SSH transport, require SSH key
+	if newTransport == "ssh" && sshKey == "" {
+		printErr("SSH key is required for SSH transport")
+		printInfo("Provide --ssh-key PATH or ensure your ~/.ssh/config has an active IdentityFile for %s", hostname)
+		return fmt.Errorf("SSH key required")
+	}
+
+	// Validate SSH key exists if provided
+	if sshKey != "" && !ssh.KeyExists(sshKey) {
+		printErr("SSH key file not found: %s", ssh.ExpandPath(sshKey))
+		return fmt.Errorf("SSH key not found")
+	}
+
 	// Create and save context
 	ctx := &config.Context{
-		Name:         newName,
-		Hostname:     hostname,
-		User:         user,
-		Transport:    newTransport,
-		SSHHostAlias: newSSHHost,
+		Name:      newName,
+		Hostname:  hostname,
+		User:      user,
+		Transport: newTransport,
+		SSHKey:    sshKey,
 	}
 
 	if err := ctx.Save(); err != nil {
@@ -114,8 +146,8 @@ func runNew(cmd *cobra.Command, args []string) error {
 	}
 
 	sshInfo := ""
-	if newSSHHost != "" {
-		sshInfo = fmt.Sprintf(", ssh_host=%s", newSSHHost)
+	if sshKey != "" {
+		sshInfo = fmt.Sprintf(", key=%s", sshKey)
 	}
 
 	printOk("Created context '%s' → %s@%s (%s%s)", newName, user, hostname, newTransport, sshInfo)
